@@ -12,6 +12,7 @@ docs/.obsidian
 .idea/jarRepositories.xml
 .idea/compiler.xml
 .idea/libraries/
+.windsurf
 *.iws
 *.iml
 *.ipr
