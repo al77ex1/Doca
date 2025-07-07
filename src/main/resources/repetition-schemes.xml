@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<repetition-schemes>
+    <scheme id="1" name="Standard">
+        <interval unit="minutes">20</interval>
+        <interval unit="days">1</interval>
+        <interval unit="days">2</interval>
+        <interval unit="days">14</interval>
+        <interval unit="days">60</interval>
+    </scheme>
+    <scheme id="2" name="Extended">
+        <interval unit="days">1</interval>
+        <interval unit="days">6</interval>
+        <interval unit="days">14</interval>
+        <interval unit="days">30</interval>
+        <interval unit="days">66</interval>
+    </scheme>
+    <scheme id="3" name="Intensive">
+        <interval unit="minutes">20</interval>
+        <interval unit="hours">1</interval>
+        <interval unit="hours">9</interval>
+        <interval unit="days">2</interval>
+        <interval unit="days">6</interval>
+        <interval unit="days">30</interval>
+    </scheme>
+</repetition-schemes>

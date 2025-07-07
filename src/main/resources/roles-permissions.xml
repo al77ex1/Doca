@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<roles>
+    <role name="ADMIN" description="Администратор системы с полным доступом">
+        <permission>MANAGE_NOTIFICATION</permission>
+        <permission>MANAGE_USERS</permission>
+        <permission>MANAGE_ROLES</permission>
+        <permission>VIEW_NOTIFICATION</permission>
+        <permission>VIEW_USERS</permission>
+        <permission>VIEW_ROLES</permission>
+        <permission>MANAGE_QA</permission>
+        <permission>MANAGE_TAXONOMY</permission>
+    </role>
+    <role name="MODERATOR" description="Модератор">
+        <permission>VIEW_NOTIFICATION</permission>
+        <permission>VIEW_USERS</permission>
+        <permission>VIEW_ROLES</permission>
+        <permission>MANAGE_QA</permission>
+    </role>
+    <role name="USER" description="Пользователь системы">
+        <permission>VIEW_NOTIFICATION</permission>
+    </role>
+</roles>
