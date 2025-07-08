@@ -2,6 +2,9 @@
 
 CREATE TABLE docs (
     id BIGSERIAL PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW()
+    filename TEXT NOT NULL,
+    filetype TEXT NOT NULL,
+    uploaded_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW(),
+    file_content BYTEA NOT NULL,
+    extracted_text TEXT
 );

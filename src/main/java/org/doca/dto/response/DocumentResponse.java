@@ -15,6 +15,8 @@ import java.time.LocalDateTime;
 public class DocumentResponse {
     
     private Long id;
-    private String name;
-    private LocalDateTime createdAt;
+    private String filename;
+    private String filetype;
+    private LocalDateTime uploadedAt;
+    private String extractedText;
 }

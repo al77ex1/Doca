@@ -5,18 +5,14 @@ import org.doca.dto.response.DocumentResponse;
 import org.doca.entity.Document;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
-import org.mapstruct.MappingTarget;
-import org.mapstruct.factory.Mappers;
-
-import java.util.List;
+import org.springframework.stereotype.Component;
 
 /**
  * Mapper for converting between Document entity and DTOs
  */
 @Mapper(componentModel = "spring")
+@Component
 public interface DocumentMapper {
-    
-    DocumentMapper INSTANCE = Mappers.getMapper(DocumentMapper.class);
     
     /**
      * Convert entity to response DTO
@@ -24,21 +20,10 @@ public interface DocumentMapper {
     DocumentResponse toResponse(Document document);
     
     /**
-     * Convert list of entities to list of response DTOs
-     */
-    List<DocumentResponse> toResponseList(List<Document> documents);
-    
-    /**
      * Convert request DTO to entity
      */
     @Mapping(target = "id", ignore = true)
-    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "uploadedAt", ignore = true)
+    @Mapping(target = "extractedText", ignore = true)
     Document toEntity(DocumentRequest request);
-    
-    /**
-     * Update entity from request DTO
-     */
-    @Mapping(target = "id", ignore = true)
-    @Mapping(target = "createdAt", ignore = true)
-    void updateEntityFromRequest(DocumentRequest request, @MappingTarget Document document);
 }

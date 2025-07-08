@@ -30,7 +30,7 @@ public class DocumentService {
     
     @Transactional
     public Document createDocument(Document document) {
-        document.setCreatedAt(LocalDateTime.now());
+        document.setUploadedAt(LocalDateTime.now());
         return documentRepository.save(document);
     }
     
@@ -38,8 +38,10 @@ public class DocumentService {
     public Optional<Document> updateDocument(Long id, Document updatedDocument) {
         return documentRepository.findById(id)
                 .map(existingDocument -> {
-                    existingDocument.setName(updatedDocument.getName());
-                    // Keep the original creation date
+                    existingDocument.setFilename(updatedDocument.getFilename());
+                    existingDocument.setFiletype(updatedDocument.getFiletype());
+                    existingDocument.setExtractedText(updatedDocument.getExtractedText());
+                    // Don't update file content and upload date
                     return documentRepository.save(existingDocument);
                 });
     }

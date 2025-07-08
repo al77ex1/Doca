@@ -5,6 +5,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 /**
@@ -15,7 +16,13 @@ import jakarta.validation.constraints.Size;
 @AllArgsConstructor
 public class DocumentRequest {
     
-    @NotBlank(message = "Document name is required")
-    @Size(min = 3, max = 255, message = "Document name must be between 3 and 255 characters")
-    private String name;
+    @NotBlank(message = "Filename is required")
+    @Size(min = 1, max = 255, message = "Filename must be between 1 and 255 characters")
+    private String filename;
+    
+    @NotBlank(message = "Filetype is required")
+    private String filetype;
+    
+    @NotNull(message = "File content is required")
+    private byte[] fileContent;
 }
