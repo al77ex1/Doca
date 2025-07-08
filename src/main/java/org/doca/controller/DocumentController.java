@@ -7,31 +7,40 @@ import org.doca.dto.response.DocumentResponse;
 import org.doca.entity.Document;
 import org.doca.service.DocumentService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PagedResourcesAssembler;
+import org.springframework.hateoas.EntityModel;
+import org.springframework.hateoas.PagedModel;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.List;
 
 @RestController
 public class DocumentController implements DocumentApi {
     
     private final DocumentService documentService;
     private final DocumentMapper documentMapper;
+    private final PagedResourcesAssembler<Document> pagedResourcesAssembler;
     
     @Autowired
-    public DocumentController(DocumentService documentService, DocumentMapper documentMapper) {
+    public DocumentController(
+            DocumentService documentService, 
+            DocumentMapper documentMapper,
+            PagedResourcesAssembler<Document> pagedResourcesAssembler) {
         this.documentService = documentService;
         this.documentMapper = documentMapper;
+        this.pagedResourcesAssembler = pagedResourcesAssembler;
     }
     
     @Override
-    public ResponseEntity<List<DocumentResponse>> getAllDocuments() {
-        List<Document> documents = documentService.getAllDocuments();
-        List<DocumentResponse> responseList = documents.stream()
-                .map(documentMapper::toResponse)
-                .toList();
-        return ResponseEntity.ok(responseList);
+    public ResponseEntity<PagedModel<EntityModel<DocumentResponse>>> getAllDocuments(Pageable pageable) {
+        Page<Document> documentPage = documentService.getAllDocuments(pageable);
+        PagedModel<EntityModel<DocumentResponse>> pagedModel = pagedResourcesAssembler.toModel(
+                documentPage,
+                entity -> EntityModel.of(documentMapper.toResponse(entity))
+        );
+        return ResponseEntity.ok(pagedModel);
     }
     
     @Override

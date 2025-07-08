@@ -9,11 +9,13 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.doca.dto.request.DocumentRequest;
 import org.doca.dto.response.DocumentResponse;
 import org.doca.interceptor.ErrorMessage;
+import org.springframework.data.domain.Pageable;
+import org.springframework.hateoas.EntityModel;
+import org.springframework.hateoas.PagedModel;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
-import java.util.List;
 
 @Tag(name = "Documents", description = "Operations related to document management")
 @RequestMapping("/api/documents")
@@ -21,8 +23,8 @@ public interface DocumentApi {
 
     @GetMapping
     @Operation(
-        summary = "Get all documents",
-        description = "Retrieves a list of all available documents"
+        summary = "Get documents",
+        description = "Retrieves a paginated list of documents with sorting options"
     )
     @ApiResponse(
         responseCode = "200", 
@@ -49,7 +51,7 @@ public interface DocumentApi {
         description = "Server error",
         content = @Content(schema = @Schema(implementation = ErrorMessage.class))
     )
-    ResponseEntity<List<DocumentResponse>> getAllDocuments();
+    ResponseEntity<PagedModel<EntityModel<DocumentResponse>>> getAllDocuments(Pageable pageable);
     
     @GetMapping("/{id}")
     @Operation(
