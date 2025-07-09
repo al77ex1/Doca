@@ -1,77 +1,113 @@
 package org.doca.controller;
 
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.doca.controller.interfaces.MCPApi;
 import org.doca.dto.response.MCPListResourcesResponse;
 import org.doca.dto.response.MCPResourceResponse;
+import org.doca.dto.response.MCPUnifiedResponse;
+import org.doca.exception.MCPException;
 import org.doca.service.MCPService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.Arrays;
 
 /**
- * REST controller for MCP (Model Control Protocol) operations
+ * Unified controller for MCP (Model Control Protocol) operations
+ * Provides a single entry point for AI clients
  */
 @RestController
-@RequestMapping("/mcp")
-@Tag(name = "MCP", description = "Model Control Protocol endpoints")
+@Tag(name = "MCP", description = "Single entry point for Model Control Protocol operations")
 public class MCPController implements MCPApi {
 
+    private static final Logger logger = LoggerFactory.getLogger(MCPController.class);
     private final MCPService mcpService;
+    
+    @Value("${mcp.server.name:DocaStore}")
+    private String serverName;
 
     @Autowired
     public MCPController(MCPService mcpService) {
         this.mcpService = mcpService;
     }
 
-    @GetMapping("/resources")
-    @Operation(
-        summary = "List available resources",
-        description = "Lists all available document resources with pagination"
-    )
-    @ApiResponse(
-        responseCode = "200",
-        description = "Resources listed successfully"
-    )
     @Override
-    public ResponseEntity<MCPListResourcesResponse> listResources(
-            @Parameter(description = "Pagination cursor") 
+    public ResponseEntity<MCPUnifiedResponse> processRequest(
+            @RequestParam String type, 
+            @RequestParam(required = false) String uri, 
             @RequestParam(required = false) String cursor) {
-        MCPListResourcesResponse response = mcpService.listResources(cursor);
-        return ResponseEntity.ok(response);
-    }
-
-    @GetMapping("/resources/{uri}")
-    @Operation(
-        summary = "Read resource",
-        description = "Reads a specific resource by its URI"
-    )
-    @ApiResponse(
-        responseCode = "200",
-        description = "Resource read successfully",
-        content = @Content(schema = @Schema(implementation = Object.class))
-    )
-    @ApiResponse(
-        responseCode = "404",
-        description = "Resource not found"
-    )
-    @Override
-    public ResponseEntity<MCPResourceResponse> readResource(
-            @Parameter(description = "Resource URI", example = "doc:123") 
-            @PathVariable String uri) {
-        MCPResourceResponse response = mcpService.readResource(uri);
         
-        if ("error".equals(response.getStatus()) && 
-            response.getMessage() != null && 
-            response.getMessage().contains("not found")) {
-            return ResponseEntity.notFound().build();
+        logger.debug("Processing MCP request of type: {}", type);
+        
+        if (type == null || type.isEmpty()) {
+            throw new MCPException("Missing required parameter: type");
         }
         
+        switch (type) {
+            case "list_resources":
+                return handleListResources(cursor);
+                
+            case "read_resource":
+                return handleReadResource(uri);
+                
+            case "server_info":
+                return handleServerInfo();
+                
+            default:
+                throw new MCPException("Unsupported operation type: " + type);
+        }
+    }
+    
+    private ResponseEntity<MCPUnifiedResponse> handleListResources(String cursor) {
+        MCPListResourcesResponse listResponse = mcpService.listResources(cursor);
+        
+        MCPUnifiedResponse response = MCPUnifiedResponse.builder()
+                .status(listResponse.getStatus())
+                .nextCursor(listResponse.getNextCursor())
+                .resources(listResponse.getResources())
+                .build();
+                
+        return ResponseEntity.ok(response);
+    }
+    
+    private ResponseEntity<MCPUnifiedResponse> handleReadResource(String uri) {
+        if (uri == null || uri.isEmpty()) {
+            throw new MCPException("Missing required parameter: uri");
+        }
+        
+        MCPResourceResponse resourceResponse = mcpService.readResource(uri);
+        
+        if ("error".equals(resourceResponse.getStatus()) && 
+            resourceResponse.getMessage() != null && 
+            resourceResponse.getMessage().contains("not found")) {
+            throw new MCPException("Resource not found: " + uri, HttpStatus.NOT_FOUND);
+        }
+        
+        MCPUnifiedResponse response = MCPUnifiedResponse.builder()
+                .status(resourceResponse.getStatus())
+                .message(resourceResponse.getMessage())
+                .content(resourceResponse.getContent())
+                .build();
+                
+        return ResponseEntity.ok(response);
+    }
+    
+    private ResponseEntity<MCPUnifiedResponse> handleServerInfo() {
+        String[] operations = {"list_resources", "read_resource", "server_info"};
+        
+        MCPUnifiedResponse response = MCPUnifiedResponse.builder()
+                .status("success")
+                .serverName(serverName)
+                .version("1.0.0")
+                .supportedOperations(Arrays.asList(operations))
+                .build();
+                
         return ResponseEntity.ok(response);
     }
 }
