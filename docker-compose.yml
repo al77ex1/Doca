@@ -37,6 +37,7 @@ services:
       - elasticsearch
     volumes:
       - ./test_docs:/app/test_docs
+      - doca_models:/app/models
     restart: unless-stopped
     deploy:
       resources:
@@ -69,3 +70,6 @@ networks:
 
 volumes:
   doca_es_data:
+    driver: local
+  doca_models:
+    driver: local
