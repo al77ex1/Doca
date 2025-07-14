@@ -7,8 +7,8 @@ import argparse
 import os
 import time
 
-from doca import config
-from doca.core.indexer import DocumentIndexer
+from src import config
+from src.core.indexer import DocumentIndexer
 
 
 def main():

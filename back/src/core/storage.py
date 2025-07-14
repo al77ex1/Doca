@@ -4,11 +4,17 @@ Handles interaction with Elasticsearch for document storage and retrieval
 """
 
 import time
+import logging
 from typing import List, Dict, Any, Tuple
 from elasticsearch import Elasticsearch
 from elasticsearch.helpers import bulk
 
-from doca import config
+from src import config
+from src.utils.es_health_check import wait_for_elasticsearch
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 
 class ElasticsearchStorage:
@@ -25,6 +31,11 @@ class ElasticsearchStorage:
         self.es_host = es_host
         self.index_name = index_name
         
+        # Wait for Elasticsearch to be ready before connecting
+        if not wait_for_elasticsearch(es_host):
+            logger.error(f"Failed to connect to Elasticsearch at {es_host}. Please check if Elasticsearch is running.")
+            raise ConnectionError(f"Could not connect to Elasticsearch at {es_host}")
+            
         # Connect to Elasticsearch
         self.es = Elasticsearch(es_host)
         
@@ -66,6 +77,67 @@ class ElasticsearchStorage:
             print(f"Index created: {self.index_name}")
         else:
             print(f"Index already exists: {self.index_name}")
+            
+    def delete_index(self) -> bool:
+        """
+        Delete the Elasticsearch index if it exists
+        
+        Returns:
+            True if index was deleted, False otherwise
+        """
+        try:
+            if self.es.indices.exists(index=self.index_name):
+                self.es.indices.delete(index=self.index_name)
+                print(f"Index deleted: {self.index_name}")
+                return True
+            else:
+                print(f"Index does not exist: {self.index_name}")
+                return False
+        except Exception as e:
+            print(f"Error deleting index: {e}")
+            return False
+            
+    def recreate_index(self, embedding_dim: int) -> bool:
+        """
+        Delete and recreate the index with the correct embedding dimension
+        
+        Args:
+            embedding_dim: Dimension of embeddings
+            
+        Returns:
+            True if index was recreated successfully, False otherwise
+        """
+        try:
+            # Delete existing index
+            self.delete_index()
+            
+            # Define index mapping with vector field for embeddings
+            mapping = {
+                "mappings": {
+                    "properties": {
+                        "content": {"type": "text"},
+                        "content_vector": {
+                            "type": "dense_vector",
+                            "dims": embedding_dim,
+                            "index": True,
+                            "similarity": "cosine"
+                        },
+                        "file_path": {"type": "keyword"},
+                        "file_name": {"type": "keyword"},
+                        "chunk_id": {"type": "integer"},
+                        "file_type": {"type": "keyword"},
+                        "metadata": {"type": "object"}
+                    }
+                }
+            }
+            
+            # Create the index
+            self.es.indices.create(index=self.index_name, body=mapping)
+            print(f"Index recreated: {self.index_name}")
+            return True
+        except Exception as e:
+            print(f"Error recreating index: {e}")
+            return False
     
     def update_mapping(self, embedding_dim: int) -> None:
         """

@@ -10,7 +10,7 @@ import torch
 from tqdm import tqdm
 from sentence_transformers import SentenceTransformer
 
-from doca import config
+from src import config
 
 
 class EmbeddingGenerator:
@@ -55,6 +55,11 @@ class EmbeddingGenerator:
         """
         all_embeddings = []
         
+        # Уменьшаем размер батча, если чанков слишком много
+        if len(chunks) > 100 and batch_size > 2:
+            batch_size = 2
+            print(f"Reducing batch size to {batch_size} due to large number of chunks")
+        
         # Show progress bar for larger datasets
         use_progress = len(chunks) > 10
         progress_bar = None
@@ -63,24 +68,44 @@ class EmbeddingGenerator:
         
         try:
             for i in range(0, len(chunks), batch_size):
-                batch = chunks[i:i+batch_size]
-                batch_embeddings = self.model.encode(batch, show_progress_bar=False).tolist()
-                all_embeddings.extend(batch_embeddings)
+                # Принудительная очистка памяти перед каждым батчем
+                gc.collect()
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+                
+                try:
+                    batch = chunks[i:i+batch_size]
+                    # Используем более низкоуровневый API для большего контроля над памятью
+                    with torch.no_grad():  # Отключаем вычисление градиентов для экономии памяти
+                        batch_embeddings = self.model.encode(batch, show_progress_bar=False, convert_to_numpy=True).tolist()
+                    all_embeddings.extend(batch_embeddings)
+                    
+                    # Явно удаляем переменные для освобождения памяти
+                    del batch
+                except Exception as e:
+                    print(f"Error encoding batch {i}-{i+batch_size}: {e}")
+                    # В случае ошибки добавляем нулевые эмбеддинги, чтобы сохранить структуру
+                    for _ in range(min(batch_size, len(chunks) - i)):
+                        all_embeddings.append([0.0] * self.embedding_dim)
                 
                 # Update progress bar
                 if progress_bar:
-                    progress_bar.update(len(batch))
+                    progress_bar.update(min(batch_size, len(chunks) - i))
                 
                 # Force garbage collection to free memory after each batch
                 gc.collect()
                 if torch.cuda.is_available():
                     torch.cuda.empty_cache()
                 
-                # Small delay to allow system to stabilize memory usage
-                if i % (batch_size * 2) == 0 and i > 0:
-                    time.sleep(0.1)
+                # Увеличиваем задержку для лучшей стабилизации памяти
+                time.sleep(0.2)
         finally:
             if progress_bar:
                 progress_bar.close()
+            
+            # Финальная очистка памяти
+            gc.collect()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
         
         return all_embeddings

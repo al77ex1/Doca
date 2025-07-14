@@ -15,6 +15,49 @@ services:
       - "9300:9300"
     volumes:
       - doca_es_data:/usr/share/elasticsearch/data
+
     restart: unless-stopped
+    networks:
+      - doca-network
+
+  backend:
+    build:
+      context: ./back
+      dockerfile: Dockerfile
+    container_name: doca_backend
+    environment:
+      - DOCA_ES_HOST=http://elasticsearch:9200
+    ports:
+      - "8000:8000"
+    depends_on:
+      - elasticsearch
+    volumes:
+      - ./test_docs:/app/test_docs
+    restart: unless-stopped
+    networks:
+      - doca-network
+
+  frontend:
+    build:
+      context: ./front
+      dockerfile: Dockerfile
+      args:
+        - NODE_ENV=development
+    container_name: doca_frontend
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    volumes:
+      - ./front:/app
+      - /app/node_modules
+    restart: unless-stopped
+    networks:
+      - doca-network
+
+networks:
+  doca-network:
+    driver: bridge
+
 volumes:
   doca_es_data:
