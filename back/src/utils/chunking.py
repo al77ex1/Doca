@@ -18,20 +18,34 @@ def chunk_text(text: str, chunk_size: int, chunk_overlap: int) -> List[str]:
     Returns:
         List of text chunks
     """
-    # Проверка на максимальный размер текста для предотвращения проблем с памятью
-    max_safe_length = 10_000_000  # 10MB текста
+    # Strict limit on text size to prevent memory issues
+    max_safe_length = 500_000  # 500KB text maximum (reduced from 10MB)
     if len(text) > max_safe_length:
         print(f"Warning: Text is very large ({len(text)} chars). Truncating to {max_safe_length} chars.")
         text = text[:max_safe_length]
     
+    # Enforce reasonable chunk size limits
+    if chunk_size > 1000:
+        print(f"Warning: Chunk size {chunk_size} is too large. Limiting to 1000 characters.")
+        chunk_size = 1000
+        
+    if chunk_overlap > chunk_size // 2:
+        print(f"Warning: Chunk overlap {chunk_overlap} is too large. Limiting to {chunk_size // 2} characters.")
+        chunk_overlap = chunk_size // 2
+    
+    # Initialize result list with a reasonable capacity estimate
+    estimated_chunks = max(1, len(text) // (chunk_size - chunk_overlap) + 1)
+    max_chunks = 100  # Hard limit on number of chunks
     chunks = []
     
     if len(text) <= chunk_size:
         chunks.append(text)
     else:
         start = 0
-        while start < len(text):
-            # Защита от бесконечного цикла
+        chunk_count = 0
+        
+        while start < len(text) and chunk_count < max_chunks:
+            # Safety check
             if start >= len(text):
                 break
                 
@@ -40,37 +54,47 @@ def chunk_text(text: str, chunk_size: int, chunk_overlap: int) -> List[str]:
             # Try to find a natural break point (period, newline, etc.)
             if end < len(text):
                 found_break = False
-                for break_char in ["\n\n", "\n", ". ", "! ", "? ", "; "]:
+                # Prioritize paragraph breaks first, then sentences, then other punctuation
+                for break_char in ["\n\n", "\n", ". ", "! ", "? ", "; ", ", "]:
                     try:
-                        natural_break = text.rfind(break_char, start, end)
-                        if natural_break != -1 and natural_break > start + chunk_size // 2:
+                        # Look for break points in the second half of the chunk for better distribution
+                        min_break_point = start + (chunk_size // 3)
+                        natural_break = text.rfind(break_char, min_break_point, end)
+                        if natural_break != -1:
                             end = natural_break + len(break_char)
                             found_break = True
                             break
                     except Exception as e:
                         print(f"Error finding break point: {e}")
-                        # Продолжаем с текущим end если возникла ошибка
+                        # Continue with current end if there was an error
                 
-                # Если не нашли подходящую точку разрыва, используем текущий end
+                # If no suitable break point was found, use the current end
                 if not found_break:
-                    # Убедимся, что end не превышает длину текста
                     end = min(end, len(text))
             
-            # Защита от некорректных индексов
-            if start >= end:
+            # Safety check for invalid indices
+            if start >= end or start >= len(text) or end > len(text):
                 break
                 
             try:
                 chunk = text[start:end]
-                chunks.append(chunk)
+                if chunk.strip():  # Only add non-empty chunks
+                    chunks.append(chunk)
+                    chunk_count += 1
             except Exception as e:
                 print(f"Error creating chunk: {e}")
                 break
                 
+            # Move to next chunk position
             start = end - chunk_overlap
             
-            # Защита от зацикливания
+            # Prevent infinite loops
             if start == end:
                 start += 1
+                
+            # Check if we've reached the maximum number of chunks
+            if chunk_count >= max_chunks:
+                print(f"Warning: Maximum number of chunks ({max_chunks}) reached. Some text may not be processed.")
+                break
     
     return chunks

@@ -27,6 +27,10 @@ services:
     container_name: doca_backend
     environment:
       - DOCA_ES_HOST=http://elasticsearch:9200
+      - DOCA_CHUNK_SIZE=512
+      - DOCA_CHUNK_OVERLAP=128
+      - DOCA_BATCH_SIZE=2
+      - DOCA_MEMORY_LIMIT=8.0
     ports:
       - "8000:8000"
     depends_on:
@@ -34,6 +38,10 @@ services:
     volumes:
       - ./test_docs:/app/test_docs
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 8G
     networks:
       - doca-network
 

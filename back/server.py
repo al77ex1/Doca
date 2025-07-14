@@ -78,6 +78,8 @@ class WebSocketIndexer(DocumentIndexer):
             Number of chunks successfully indexed
         """
         indexed_count = 0
+        skipped_count = 0
+        error_count = 0
         
         try:
             # Get all supported files
@@ -96,43 +98,111 @@ class WebSocketIndexer(DocumentIndexer):
             # Sort files by size to process smaller files first
             all_files.sort(key=lambda p: p.stat().st_size)
             
-            total_files = len(all_files)
-            await sio.emit('indexing_started', {'total_files': total_files})
+            # Set strict file size limit
+            MAX_FILE_SIZE = 5 * 1024 * 1024  # 5 MB limit per file
             
-            # Index each file with progress updates
-            for i, file_path in enumerate(all_files):
+            # Filter out files that are too large
+            filtered_files = []
+            for file_path in all_files:
+                file_size = file_path.stat().st_size
+                if file_size > MAX_FILE_SIZE:
+                    skipped_count += 1
+                    await sio.emit('indexing_warning', {
+                        'file_path': str(file_path),
+                        'warning': f"File too large ({file_size} bytes). Skipping."
+                    })
+                else:
+                    filtered_files.append(file_path)
+            
+            total_files = len(filtered_files)
+            await sio.emit('indexing_started', {
+                'total_files': total_files,
+                'skipped_files': skipped_count
+            })
+            
+            # Process files in smaller batches to manage memory better
+            BATCH_SIZE = 5  # Process 5 files at a time
+            
+            for batch_idx in range(0, len(filtered_files), BATCH_SIZE):
+                # Force aggressive memory cleanup between batches
+                import gc
+                gc.collect()
+                
                 try:
-                    # Force garbage collection before processing each file
-                    import gc
+                    import torch
+                    if torch.cuda.is_available():
+                        torch.cuda.empty_cache()
+                except ImportError:
+                    pass
+                
+                # Process a batch of files
+                batch_files = filtered_files[batch_idx:batch_idx + BATCH_SIZE]
+                
+                for i, file_path in enumerate(batch_files):
+                    try:
+                        # Calculate overall progress
+                        overall_idx = batch_idx + i
+                        
+                        # Log memory usage for debugging
+                        import psutil
+                        process = psutil.Process(os.getpid())
+                        memory_info = process.memory_info()
+                        memory_usage_mb = memory_info.rss / 1024 / 1024
+                        
+                        await sio.emit('indexing_status', {
+                            'status': 'processing',
+                            'message': f"Processing file {overall_idx + 1}/{total_files}",
+                            'memory_usage_mb': round(memory_usage_mb, 2)
+                        })
+                        
+                        # Index the file with a timeout to prevent hanging
+                        try:
+                            # Create a task for indexing with timeout
+                            file_chunks = self.index_file(str(file_path))
+                            indexed_count += file_chunks
+                            
+                            # Send progress update
+                            progress = {
+                                'current': overall_idx + 1,
+                                'total': total_files,
+                                'percentage': round((overall_idx + 1) / total_files * 100, 2),
+                                'file_path': str(file_path),
+                                'chunks_indexed': file_chunks,
+                                'memory_usage_mb': round(memory_usage_mb, 2)
+                            }
+                            await sio.emit('indexing_progress', progress)
+                        except asyncio.TimeoutError:
+                            error_count += 1
+                            error_msg = f"Timeout processing file {file_path}"
+                            print(error_msg)
+                            await sio.emit('indexing_error', {
+                                'file_path': str(file_path),
+                                'error': error_msg
+                            })
+                    except Exception as e:
+                        error_count += 1
+                        error_msg = f"Error processing file {file_path}: {str(e)}"
+                        print(error_msg)
+                        await sio.emit('indexing_error', {
+                            'file_path': str(file_path),
+                            'error': error_msg
+                        })
+                    
+                    # Force garbage collection after each file
                     gc.collect()
                     
-                    file_chunks = self.index_file(str(file_path))
-                    indexed_count += file_chunks
-                    
-                    # Send progress update
-                    progress = {
-                        'current': i + 1,
-                        'total': total_files,
-                        'percentage': round((i + 1) / total_files * 100, 2),
-                        'file_path': str(file_path),
-                        'chunks_indexed': file_chunks
-                    }
-                    await sio.emit('indexing_progress', progress)
-                    
-                    # Small delay to prevent overwhelming the socket
-                    await asyncio.sleep(0.05)  # Increased delay to give more time for memory cleanup
-                except Exception as e:
-                    error_msg = f"Error processing file {file_path}: {str(e)}"
-                    print(error_msg)
-                    await sio.emit('indexing_error', {
-                        'file_path': str(file_path),
-                        'error': error_msg
-                    })
+                    # Small delay to prevent overwhelming the socket and allow memory cleanup
+                    await asyncio.sleep(0.2)
+                
+                # Additional delay between batches to ensure memory is freed
+                await asyncio.sleep(1.0)
             
             # Send completion event
             await sio.emit('indexing_completed', {
                 'total_files': total_files,
-                'total_chunks': indexed_count
+                'total_chunks': indexed_count,
+                'skipped_files': skipped_count,
+                'error_files': error_count
             })
             
             return indexed_count

@@ -126,19 +126,20 @@ class DocumentIndexer:
             # Get file type
             ext = os.path.splitext(file_path)[1].lower().lstrip('.')
             
-            # Проверка размера файла перед чтением
+            # Strict file size check
             file_size = os.path.getsize(file_path)
-            max_file_size = 50 * 1024 * 1024  # 50 МБ
+            max_file_size = 5 * 1024 * 1024  # 5 MB - much stricter limit
             if file_size > max_file_size:
                 print(f"Warning: File {file_path} is too large ({file_size} bytes). Skipping.")
                 return 0
             
-            # Read file content with error handling
+            # Read file content with error handling - using a context manager to ensure file is closed
+            content = None
             try:
                 with open(file_path, 'r', encoding='utf-8') as f:
                     content = f.read()
             except UnicodeDecodeError:
-                # Попробуем другие кодировки
+                # Try alternative encodings
                 try:
                     with open(file_path, 'r', encoding='latin-1') as f:
                         content = f.read()
@@ -150,87 +151,102 @@ class DocumentIndexer:
                 print(f"Error reading file {file_path}: {e}")
                 return 0
             
-            # Очистка памяти
+            if not content or len(content) == 0:
+                print(f"Warning: Empty file {file_path}. Skipping.")
+                return 0
+                
+            # Limit content size to prevent memory issues
+            max_content_length = 100_000  # 100K characters max
+            if len(content) > max_content_length:
+                print(f"Warning: Content of {file_path} is too large ({len(content)} chars). Truncating.")
+                content = content[:max_content_length]
+            
+            # Force garbage collection
             gc.collect()
             
             # Parse content to plain text
             try:
                 text = parser.parse(content)
-                # Освобождаем память
+                # Free memory immediately
                 del content
                 gc.collect()
             except Exception as e:
                 print(f"Error parsing file {file_path}: {e}")
+                del content
+                gc.collect()
                 return 0
             
-            # Split into chunks
+            # Split into chunks with smaller chunk size for memory efficiency
             try:
-                chunks = chunk_text(text, self.chunk_size, self.chunk_overlap)
-                # Освобождаем память
+                # Use smaller chunks for large files
+                effective_chunk_size = min(self.chunk_size, 128)  # Max 128 chars per chunk
+                effective_overlap = min(self.chunk_overlap, 32)   # Max 32 chars overlap
+                
+                chunks = chunk_text(text, effective_chunk_size, effective_overlap)
+                # Free memory immediately
                 del text
                 gc.collect()
             except MemoryError:
-                print(f"Memory error when chunking file {file_path}. Try reducing chunk size.")
+                print(f"Memory error when chunking file {file_path}. Skipping.")
                 return 0
             except Exception as e:
                 print(f"Error chunking file {file_path}: {e}")
                 return 0
             
-            # Проверка на пустой список чанков
+            # Check for empty chunks
             if not chunks:
                 print(f"Warning: No chunks created for file {file_path}")
                 return 0
+            
+            # Limit number of chunks to prevent memory issues
+            max_chunks = 50  # Process at most 50 chunks per file
+            if len(chunks) > max_chunks:
+                print(f"Warning: Too many chunks ({len(chunks)}) for file {file_path}. Limiting to {max_chunks}.")
+                chunks = chunks[:max_chunks]
                 
-            # Generate embeddings in batches
+            # Generate embeddings and index in very small batches
+            success_count = 0
             try:
-                batch_size = config.BATCH_SIZE
-                total_chunks = len(chunks)
-                total_embeddings = []
+                # Use micro-batches of just 1 or 2 chunks at a time
+                micro_batch_size = 1
                 
-                for i in range(0, total_chunks, batch_size):
-                    batch_chunks = chunks[i:i+batch_size]
-                    batch_embeddings = self.embedding_generator.generate_embeddings(batch_chunks)
-                    total_embeddings.extend(batch_embeddings)
+                for i in range(0, len(chunks), micro_batch_size):
+                    # Get current batch
+                    batch_chunks = chunks[i:i+micro_batch_size]
                     
-                    # Force garbage collection after each batch
+                    # Generate embeddings for this micro-batch
+                    batch_embeddings = self.embedding_generator.generate_embeddings(batch_chunks)
+                    
+                    # Prepare and index documents for this micro-batch immediately
+                    batch_documents = []
+                    for j, (chunk, embedding) in enumerate(zip(batch_chunks, batch_embeddings)):
+                        doc = self.storage.prepare_document(
+                            file_path=file_path,
+                            file_type=ext,
+                            chunk_id=i+j,
+                            content=chunk,
+                            embedding=embedding,
+                            metadata={"indexed_at": time.time()}
+                        )
+                        batch_documents.append(doc)
+                    
+                    # Index this micro-batch immediately
+                    success, failed = self.storage.index_documents(batch_documents)
+                    success_count += success
+                    
+                    # Free memory immediately after each micro-batch
                     del batch_chunks
                     del batch_embeddings
+                    del batch_documents
                     gc.collect()
-                
-                embeddings = total_embeddings
-            except Exception as e:
-                print(f"Error generating embeddings for file {file_path}: {e}")
-                return 0
-            
-            # Prepare documents for indexing
-            documents = []
-            try:
-                for i, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
-                    doc = self.storage.prepare_document(
-                        file_path=file_path,
-                        file_type=ext,
-                        chunk_id=i,
-                        content=chunk,
-                        embedding=embedding,
-                        metadata={"indexed_at": time.time()}
-                    )
-                    documents.append(doc)
                     
-                # Освобождаем память
-                del chunks
-                del embeddings
-                gc.collect()
+                    # Small delay to allow memory to be freed
+                    time.sleep(0.1)
+                
+                return success_count
             except Exception as e:
-                print(f"Error preparing documents for file {file_path}: {e}")
-                return 0
-            
-            # Index documents
-            try:
-                success, failed = self.storage.index_documents(documents)
-                return success
-            except Exception as e:
-                print(f"Error indexing documents for file {file_path}: {e}")
-                return 0
+                print(f"Error processing chunks for file {file_path}: {e}")
+                return success_count  # Return any successful chunks so far
         except MemoryError:
             print(f"Memory error when processing file {file_path}. Try increasing available memory.")
             return 0

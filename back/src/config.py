@@ -14,8 +14,8 @@ ES_HOST = os.getenv("DOCA_ES_HOST", "http://localhost:9200")
 INDEX_NAME = os.getenv("DOCA_INDEX_NAME", "doca_documents")
 
 # Chunking configuration
-CHUNK_SIZE = int(os.getenv("DOCA_CHUNK_SIZE", "256"))  # Уменьшили с 512 до 256
-CHUNK_OVERLAP = int(os.getenv("DOCA_CHUNK_OVERLAP", "64"))  # Уменьшили с 128 до 64
+CHUNK_SIZE = int(os.getenv("DOCA_CHUNK_SIZE", "512"))  # Уменьшили с 512 до 256
+CHUNK_OVERLAP = int(os.getenv("DOCA_CHUNK_OVERLAP", "128"))  # Уменьшили с 128 до 64
 
 # Embedding model configuration
 MODEL_NAME = os.getenv(
