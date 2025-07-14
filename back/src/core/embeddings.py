@@ -5,6 +5,7 @@ Handles loading models and generating embeddings with memory optimization
 
 import gc
 import time
+import os
 from typing import List
 import torch
 from tqdm import tqdm
@@ -35,9 +36,14 @@ class EmbeddingGenerator:
         except Exception as e:
             print(f"Error checking CUDA: {e}, falling back to CPU")
         
-        # Load the model
+        # Set cache directory explicitly
+        os.environ["TRANSFORMERS_CACHE"] = "/app/models"
+        os.environ["HF_HOME"] = "/app/models"
+        os.environ["SENTENCE_TRANSFORMERS_HOME"] = "/app/models"
+        
+        # Load the model with explicit cache directory
         print(f"Loading embedding model: {model_name}")
-        self.model = SentenceTransformer(model_name, device=device)
+        self.model = SentenceTransformer(model_name, device=device, cache_folder="/app/models")
         
         # Get embedding dimension
         self.embedding_dim = self.model.get_sentence_embedding_dimension()
