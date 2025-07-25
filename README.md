@@ -1,6 +1,6 @@
 # Doca - Document Assistant
 
-Doca is a system that enables semantic search over markdown documents using embeddings and Elasticsearch. The system allows a locally running LLM (e.g., in LM Studio) to search through documents and provide answers based on the content.
+Doca is a system that enables semantic search over markdown documents using embeddings and Typesense. The system allows a locally running LLM (e.g., in LM Studio) to search through documents and provide answers based on the content.
 
 ## Project Structure
 
@@ -13,7 +13,7 @@ The project is structured into two main components:
 
 ### Prerequisites
 
-1. Make sure Elasticsearch is running:
+1. Make sure Typesense is running:
 
 ```bash
 docker-compose up -d
@@ -75,8 +75,9 @@ python -m src.cli /path/to/your/markdown/documents
 
 #### CLI Options
 
-- `--es-host`: Elasticsearch host URL (default: [http://localhost:9200](http://localhost:9200))
-- `--index-name`: Elasticsearch index name (default: doca_documents)
+- `--typesense-host`: Typesense host URL (default: [http://localhost:8108](http://localhost:8108))
+- `--typesense-api-key`: Typesense API key (default: xyz)
+- `--collection-name`: Typesense collection name (default: doca_documents)
 - `--model`: Sentence transformer model name (default: paraphrase-multilingual-MiniLM-L12-v2)
 - `--chunk-size`: Text chunk size in characters (default: 512)
 - `--chunk-overlap`: Overlap between chunks in characters (default: 128)

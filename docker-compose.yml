@@ -3,7 +3,7 @@ services:
     image: typesense/typesense:0.25.1
     container_name: doca_typesense
     environment:
-      - TYPESENSE_API_KEY=xyz
+      - TYPESENSE_API_KEY=${DOCA_TYPESENSE_API_KEY:-xyz}
       - TYPESENSE_DATA_DIR=/data
     ports:
       - "8108:8108"
@@ -19,12 +19,13 @@ services:
       dockerfile: Dockerfile
     container_name: doca_backend
     environment:
-      - DOCA_TYPESENSE_HOST=http://typesense:8108
-      - DOCA_TYPESENSE_API_KEY=xyz
-      - DOCA_CHUNK_SIZE=512
-      - DOCA_CHUNK_OVERLAP=128
-      - DOCA_BATCH_SIZE=2
-      - DOCA_MEMORY_LIMIT=8.0
+      - DOCA_TYPESENSE_HOST=${DOCA_TYPESENSE_HOST:-http://typesense:8108}
+      - DOCA_TYPESENSE_API_KEY=${DOCA_TYPESENSE_API_KEY:-xyz}
+      - DOCA_COLLECTION_NAME=${DOCA_COLLECTION_NAME:-doca_documents}
+      - DOCA_CHUNK_SIZE=${DOCA_CHUNK_SIZE:-512}
+      - DOCA_CHUNK_OVERLAP=${DOCA_CHUNK_OVERLAP:-128}
+      - DOCA_BATCH_SIZE=${DOCA_BATCH_SIZE:-2}
+      - DOCA_MEMORY_LIMIT=${DOCA_MEMORY_LIMIT:-8.0}
     ports:
       - "8000:8000"
     depends_on:

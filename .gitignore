@@ -42,8 +42,6 @@ virtualenv/
 *.swp
 *.swo
 
-# Elasticsearch
-elasticsearch-*/
 data/
 logs/
 

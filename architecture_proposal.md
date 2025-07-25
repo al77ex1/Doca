@@ -17,7 +17,7 @@ doca/
 │   ├── __init__.py
 │   ├── indexer.py             # Основной класс индексера
 │   ├── embeddings.py          # Работа с эмбеддингами
-│   └── storage.py             # Абстракция хранилища (Elasticsearch)
+│   └── storage.py             # Абстракция хранилища (Typesense)
 ├── parsers/                   # Парсеры для разных типов файлов
 │   ├── __init__.py
 │   ├── base.py                # Базовый класс парсера
@@ -50,7 +50,7 @@ doca/
 
 ### core/storage.py
 - Абстракция для работы с хранилищем
-- Класс `ElasticsearchStorage` для работы с Elasticsearch
+- Класс `TypesenseStorage` для работы с Typesense
 - В будущем можно добавить другие хранилища
 
 ### parsers/base.py
