@@ -35,7 +35,14 @@ def chunk_text(text: str, chunk_size: int, chunk_overlap: int) -> List[str]:
     
     # Initialize result list with a reasonable capacity estimate
     estimated_chunks = max(1, len(text) // (chunk_size - chunk_overlap) + 1)
-    max_chunks = 100  # Hard limit on number of chunks
+    
+    # Используем значение из конфигурации вместо жестко закодированного
+    from src import config
+    max_chunks = config.MAX_CHUNKS_PER_FILE  # Берем лимит из конфигурации
+    
+    # Выводим информацию о потенциальном количестве чанков до ограничения
+    print(f"Estimated chunks before any limits: {estimated_chunks}")
+    
     chunks = []
     
     if len(text) <= chunk_size:
@@ -81,12 +88,28 @@ def chunk_text(text: str, chunk_size: int, chunk_overlap: int) -> List[str]:
                 if chunk.strip():  # Only add non-empty chunks
                     chunks.append(chunk)
                     chunk_count += 1
+                    # Добавляем отладочную информацию для первых 5 чанков и каждого 10-го
+                    if chunk_count <= 5 or chunk_count % 10 == 0:
+                        # Первые 20 символов чанка
+                        preview = chunk[:20].replace('\n', ' ').strip()
             except Exception as e:
                 print(f"Error creating chunk: {e}")
                 break
                 
             # Move to next chunk position
+            old_start = start
             start = end - chunk_overlap
+            
+            # Проверка на повторяющиеся чанки
+            if len(chunks) >= 2 and chunk == chunks[-2]:
+                print(f"Warning: Detected duplicate chunk at position {chunk_count}. Skipping overlap.")
+                start = end  # Пропускаем перекрытие для этого чанка
+            
+            # Проверка на маленький прогресс или отсутствие прогресса
+            if start <= old_start or (end - start < 10 and chunk_count > 5):
+                print(f"Warning: Small or no progress in chunking: moved only {start - old_start} characters forward")
+                # Увеличиваем прогресс, чтобы избежать создания слишком многих похожих чанков
+                start = end  # Пропускаем перекрытие для этого чанка
             
             # Prevent infinite loops
             if start == end:
@@ -96,5 +119,8 @@ def chunk_text(text: str, chunk_size: int, chunk_overlap: int) -> List[str]:
             if chunk_count >= max_chunks:
                 print(f"Warning: Maximum number of chunks ({max_chunks}) reached. Some text may not be processed.")
                 break
+    
+    # Выводим фактическое количество созданных чанков
+    print(f"Actual chunks created: {len(chunks)}")
     
     return chunks

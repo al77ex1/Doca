@@ -28,7 +28,7 @@ interface IndexingCompleted {
 }
 
 const Indexer = () => {
-  const [directory, setDirectory] = useState<string>('/path/to/documents');
+  const [directory, setDirectory] = useState<string>('./test_docs');
   const [recursive, setRecursive] = useState<boolean>(true);
   const [isIndexing, setIsIndexing] = useState<boolean>(false);
   const [progress, setProgress] = useState<IndexingProgress | null>(null);
