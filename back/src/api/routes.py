@@ -27,8 +27,8 @@ async def get_config():
         dict: Configuration parameters
     """
     return {
-        "es_host": config.ES_HOST,
-        "index_name": config.INDEX_NAME,
+        "typesense_host": config.TYPESENSE_HOST,
+        "collection_name": config.COLLECTION_NAME,
         "model_name": config.MODEL_NAME,
         "chunk_size": config.CHUNK_SIZE,
         "chunk_overlap": config.CHUNK_OVERLAP,

@@ -16,7 +16,7 @@ from src.parsers.base import BaseParser
 from src.parsers.markdown import MarkdownParser
 from src.utils.chunking import chunk_text
 from src.core.embeddings import EmbeddingGenerator
-from src.core.storage import ElasticsearchStorage
+from src.core.typesense_storage import TypesenseStorage
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -28,12 +28,13 @@ class DocumentIndexer:
     
     def __init__(
         self,
-        es_host: str = config.ES_HOST,
-        index_name: str = config.INDEX_NAME,
+        typesense_host: str = config.TYPESENSE_HOST,
+        typesense_api_key: str = config.TYPESENSE_API_KEY,
+        collection_name: str = config.COLLECTION_NAME,
         model_name: str = config.MODEL_NAME,
         chunk_size: int = config.CHUNK_SIZE,
         chunk_overlap: int = config.CHUNK_OVERLAP,
-        recreate_index: bool = False,
+        recreate_collection: bool = False,
     ):
         """
         Initialize the document indexer
@@ -54,18 +55,18 @@ class DocumentIndexer:
         
         # Initialize storage with error handling
         try:
-            self.storage = ElasticsearchStorage(es_host=es_host, index_name=index_name)
+            self.storage = TypesenseStorage(host=typesense_host, api_key=typesense_api_key, collection_name=collection_name)
             
-            # Recreate index if requested
-            if recreate_index:
-                logger.info("Recreating index...")
-                self.storage.recreate_index(self.embedding_generator.embedding_dim)
+            # Recreate collection if requested
+            if recreate_collection:
+                logger.info("Recreating collection...")
+                self.storage.recreate_collection(self.embedding_generator.embedding_dim)
             else:
                 # Update storage with embedding dimension
-                self.storage.update_mapping(self.embedding_generator.embedding_dim)
+                self.storage.update_schema(self.embedding_generator.embedding_dim)
         except ConnectionError as e:
-            logger.error(f"Failed to connect to Elasticsearch: {str(e)}")
-            raise ConnectionError(f"Failed to connect to Elasticsearch at {es_host}. Please check if Elasticsearch is running.") from e
+            logger.error(f"Failed to connect to Typesense: {str(e)}")
+            raise ConnectionError(f"Failed to connect to Typesense at {typesense_host}. Please check if Typesense is running.") from e
         except Exception as e:
             logger.error(f"Error initializing storage: {str(e)}")
             raise

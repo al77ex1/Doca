@@ -11,7 +11,7 @@ import psutil
 
 from src.core.indexer import DocumentIndexer
 from src import config
-from src.utils.es_health_check import wait_for_elasticsearch
+from src.utils.typesense_health_check import wait_for_typesense
 from src.notifications.notifier import Notifier
 
 # Configure logging
@@ -23,12 +23,13 @@ class IndexingService:
     """
     
     def __init__(self, notifier: Notifier, 
-                 es_host: str = config.ES_HOST,
-                 index_name: str = config.INDEX_NAME,
+                 typesense_host: str = config.TYPESENSE_HOST,
+                 typesense_api_key: str = config.TYPESENSE_API_KEY,
+                 collection_name: str = config.COLLECTION_NAME,
                  model_name: str = config.MODEL_NAME,
                  chunk_size: int = config.CHUNK_SIZE,
                  chunk_overlap: int = config.CHUNK_OVERLAP,
-                 recreate_index: bool = True):
+                 recreate_collection: bool = True):
         """
         Initialize indexing service
         
@@ -42,12 +43,13 @@ class IndexingService:
             recreate_index: Whether to recreate the index
         """
         self.notifier = notifier
-        self.es_host = es_host
-        self.index_name = index_name
+        self.typesense_host = typesense_host
+        self.typesense_api_key = typesense_api_key
+        self.collection_name = collection_name
         self.model_name = model_name
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
-        self.recreate_index = recreate_index
+        self.recreate_collection = recreate_collection
         self.indexer = None
         
         # Set strict file size limit
@@ -62,23 +64,24 @@ class IndexingService:
             bool: True if initialization was successful, False otherwise
         """
         try:
-            # Check Elasticsearch connection first
-            await self.notifier.send_status('checking', 'Checking Elasticsearch connection...')
+            # Check Typesense connection first
+            await self.notifier.send_status('checking', 'Checking Typesense connection...')
             
-            if not wait_for_elasticsearch(self.es_host, max_retries=5, retry_interval=1):
-                error_msg = f"Cannot connect to Elasticsearch at {self.es_host}. Please check if Elasticsearch is running."
+            if not wait_for_typesense(self.typesense_host, self.typesense_api_key, max_retries=5, retry_interval=1):
+                error_msg = f"Cannot connect to Typesense at {self.typesense_host}. Please check if Typesense is running."
                 logger.error(error_msg)
                 await self.notifier.send_error(error_msg)
                 return False
             
             # Initialize indexer
             self.indexer = DocumentIndexer(
-                es_host=self.es_host,
-                index_name=self.index_name,
+                typesense_host=self.typesense_host,
+                typesense_api_key=self.typesense_api_key,
+                collection_name=self.collection_name,
                 model_name=self.model_name,
                 chunk_size=self.chunk_size,
                 chunk_overlap=self.chunk_overlap,
-                recreate_index=self.recreate_index,
+                recreate_collection=self.recreate_collection,
             )
             
             return True

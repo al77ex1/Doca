@@ -9,9 +9,10 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 
-# Elasticsearch configuration
-ES_HOST = os.getenv("DOCA_ES_HOST", "http://localhost:9200")
-INDEX_NAME = os.getenv("DOCA_INDEX_NAME", "doca_documents")
+# Typesense configuration
+TYPESENSE_HOST = os.getenv("DOCA_TYPESENSE_HOST", "http://localhost:8108")
+TYPESENSE_API_KEY = os.getenv("DOCA_TYPESENSE_API_KEY", "xyz")
+COLLECTION_NAME = os.getenv("DOCA_COLLECTION_NAME", "doca_documents")
 
 # Chunking configuration
 CHUNK_SIZE = int(os.getenv("DOCA_CHUNK_SIZE", "512"))  # Уменьшили с 512 до 256

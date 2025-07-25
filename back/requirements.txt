@@ -1,4 +1,4 @@
-elasticsearch==8.12.0
+typesense==0.15.1
 # NumPy with version pinned to 1.x for compatibility
 numpy==1.24.3
 # PyTorch and transformers dependencies with specific versions

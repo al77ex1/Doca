@@ -15,8 +15,9 @@ def main():
     """Main function to run the indexer from command line"""
     parser = argparse.ArgumentParser(description="Index documents for semantic search")
     parser.add_argument("directory", help="Directory containing documents to index")
-    parser.add_argument("--es-host", default=config.ES_HOST, help="Elasticsearch host URL")
-    parser.add_argument("--index-name", default=config.INDEX_NAME, help="Elasticsearch index name")
+    parser.add_argument("--typesense-host", default=config.TYPESENSE_HOST, help="Typesense host URL")
+    parser.add_argument("--typesense-api-key", default=config.TYPESENSE_API_KEY, help="Typesense API key")
+    parser.add_argument("--collection-name", default=config.COLLECTION_NAME, help="Typesense collection name")
     parser.add_argument("--model", default=config.MODEL_NAME, help="Sentence transformer model name")
     parser.add_argument("--chunk-size", type=int, default=config.CHUNK_SIZE, help="Text chunk size in characters")
     parser.add_argument("--chunk-overlap", type=int, default=config.CHUNK_OVERLAP, help="Overlap between chunks in characters")
@@ -58,8 +59,9 @@ def main():
     
     # Initialize indexer
     indexer = DocumentIndexer(
-        es_host=args.es_host,
-        index_name=args.index_name,
+        typesense_host=args.typesense_host,
+        typesense_api_key=args.typesense_api_key,
+        collection_name=args.collection_name,
         model_name=args.model,
         chunk_size=args.chunk_size,
         chunk_overlap=args.chunk_overlap,

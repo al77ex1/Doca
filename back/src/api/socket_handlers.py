@@ -57,12 +57,13 @@ def register_socket_handlers(sio: socketio.AsyncServer):
         try:
             directory = data.get('directory', '')
             recursive = data.get('recursive', True)
-            es_host = data.get('es_host', config.ES_HOST)
-            index_name = data.get('index_name', config.INDEX_NAME)
+            typesense_host = data.get('typesense_host', config.TYPESENSE_HOST)
+            typesense_api_key = data.get('typesense_api_key', config.TYPESENSE_API_KEY)
+            collection_name = data.get('collection_name', config.COLLECTION_NAME)
             model_name = data.get('model_name', config.MODEL_NAME)
             chunk_size = data.get('chunk_size', config.CHUNK_SIZE)
             chunk_overlap = data.get('chunk_overlap', config.CHUNK_OVERLAP)
-            recreate_index = data.get('recreate_index', True)
+            recreate_collection = data.get('recreate_collection', True)
             
             # Create notifier
             notifier = SocketNotifier(sio)
@@ -70,12 +71,13 @@ def register_socket_handlers(sio: socketio.AsyncServer):
             # Create indexing service
             indexing_service = IndexingService(
                 notifier=notifier,
-                es_host=es_host,
-                index_name=index_name,
+                typesense_host=typesense_host,
+                typesense_api_key=typesense_api_key,
+                collection_name=collection_name,
                 model_name=model_name,
                 chunk_size=chunk_size,
                 chunk_overlap=chunk_overlap,
-                recreate_index=recreate_index,
+                recreate_collection=recreate_collection,
             )
             
             # Start indexing in a background task

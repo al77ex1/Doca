@@ -1,21 +1,14 @@
 services:
-  elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:9.0.3
-    container_name: doca_es
+  typesense:
+    image: typesense/typesense:0.25.1
+    container_name: doca_typesense
     environment:
-      - discovery.type=single-node
-      - xpack.security.enabled=false
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
-      - http.cors.enabled=true
-      - http.cors.allow-origin="*"
-      - http.cors.allow-methods=OPTIONS,HEAD,GET,POST,PUT,DELETE
-      - http.cors.allow-headers=X-Requested-With,X-Auth-Token,Content-Type,Content-Length,Authorization
+      - TYPESENSE_API_KEY=xyz
+      - TYPESENSE_DATA_DIR=/data
     ports:
-      - "9200:9200"
-      - "9300:9300"
+      - "8108:8108"
     volumes:
-      - doca_es_data:/usr/share/elasticsearch/data
-
+      - doca_typesense_data:/data
     restart: unless-stopped
     networks:
       - doca-network
@@ -26,7 +19,8 @@ services:
       dockerfile: Dockerfile
     container_name: doca_backend
     environment:
-      - DOCA_ES_HOST=http://elasticsearch:9200
+      - DOCA_TYPESENSE_HOST=http://typesense:8108
+      - DOCA_TYPESENSE_API_KEY=xyz
       - DOCA_CHUNK_SIZE=512
       - DOCA_CHUNK_OVERLAP=128
       - DOCA_BATCH_SIZE=2
@@ -34,7 +28,7 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      - elasticsearch
+      - typesense
     volumes:
       - ./test_docs:/app/test_docs
       - ./models:/app/models
@@ -69,5 +63,5 @@ networks:
     driver: bridge
 
 volumes:
-  doca_es_data:
+  doca_typesense_data:
     driver: local
