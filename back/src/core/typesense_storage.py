@@ -272,7 +272,7 @@ class TypesenseStorage:
         import os
         file_name = os.path.basename(file_path)
         
-        # For compatibility with the ElasticsearchStorage format
+        # Document format with standard structure
         return {
             "_index": self.collection_name,
             "_id": f"{file_path}_{chunk_id}",

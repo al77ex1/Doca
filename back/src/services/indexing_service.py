@@ -35,8 +35,9 @@ class IndexingService:
         
         Args:
             notifier: Notification system
-            es_host: Elasticsearch host
-            index_name: Elasticsearch index name
+            typesense_host: Typesense host URL
+            typesense_api_key: Typesense API key
+            collection_name: Typesense collection name
             model_name: Embedding model name
             chunk_size: Text chunk size
             chunk_overlap: Text chunk overlap

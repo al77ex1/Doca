@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 
 class DocumentIndexer:
-    """Class for indexing documents with embeddings in Elasticsearch"""
+    """Class for indexing documents with embeddings in Typesense"""
     
     def __init__(
         self,
@@ -40,8 +40,9 @@ class DocumentIndexer:
         Initialize the document indexer
         
         Args:
-            es_host: Elasticsearch host URL
-            index_name: Elasticsearch index name
+            typesense_host: Typesense host URL
+            typesense_api_key: Typesense API key
+            collection_name: Typesense collection name
             model_name: Sentence transformer model name
             chunk_size: Text chunk size in characters
             chunk_overlap: Overlap between chunks in characters
