@@ -186,17 +186,25 @@ class TypesenseStorage:
         except Exception as e:
             print(f"Error checking schema: {e}")
     
-    def index_documents(self, documents: List[Dict[str, Any]]) -> Tuple[int, int]:
+    def index_documents(self, documents: List[Dict[str, Any]], batch_size: int = None) -> Tuple[int, int]:
         """
-        Index multiple documents in Typesense
+        Index multiple documents in Typesense with optimized batching
         
         Args:
             documents: List of document dictionaries to index
+            batch_size: Number of documents to send in each batch (default: from config.BATCH_SIZE)
             
         Returns:
             Tuple of (success_count, failed_count)
         """
         try:
+            # Use config batch size if not specified
+            if batch_size is None:
+                from src import config
+                batch_size = config.BATCH_SIZE
+                
+            print(f"Indexing {len(documents)} documents in batches of {batch_size}")
+            
             # Prepare documents for Typesense
             typesense_docs = []
             for doc in documents:
@@ -226,12 +234,25 @@ class TypesenseStorage:
                 }
                 typesense_docs.append(typesense_doc)
             
-            # Import documents
-            results = self.client.collections[self.collection_name].documents.import_(typesense_docs)
+            # Process in batches for better performance
+            success_count = 0
+            failed_count = 0
             
-            # Count successes and failures
-            success_count = sum(1 for r in results if r.get('success', False))
-            failed_count = len(documents) - success_count
+            for i in range(0, len(typesense_docs), batch_size):
+                batch = typesense_docs[i:i+batch_size]
+                print(f"Indexing batch {i//batch_size + 1}/{(len(typesense_docs) + batch_size - 1)//batch_size}: {len(batch)} documents")
+                
+                results = self.client.collections[self.collection_name].documents.import_(
+                    batch, 
+                    {'action': 'upsert'}  # Use upsert to update existing documents
+                )
+                
+                # Count successes and failures in this batch
+                batch_success = sum(1 for r in results if r.get('success', False))
+                batch_failed = len(batch) - batch_success
+                
+                success_count += batch_success
+                failed_count += batch_failed
             
             return success_count, failed_count
         except Exception as e:

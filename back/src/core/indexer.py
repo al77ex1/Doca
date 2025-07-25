@@ -158,10 +158,10 @@ class DocumentIndexer:
                 return 0
                 
             # Limit content size to prevent memory issues
-            max_content_length = 100_000  # 100K characters max
-            if len(content) > max_content_length:
-                print(f"Warning: Content of {file_path} is too large ({len(content)} chars). Truncating.")
-                content = content[:max_content_length]
+            from src import config
+            if len(content) > config.MAX_CONTENT_LENGTH:
+                print(f"Warning: Content of {file_path} is too large ({len(content)} chars). Truncating to {config.MAX_CONTENT_LENGTH} chars.")
+                content = content[:config.MAX_CONTENT_LENGTH]
             
             # Force garbage collection
             gc.collect()
@@ -178,12 +178,14 @@ class DocumentIndexer:
                 gc.collect()
                 return 0
             
-            # Split into chunks with smaller chunk size for memory efficiency
+            # Split into chunks with configurable chunk size for memory efficiency
             try:
-                # Use smaller chunks for large files
-                effective_chunk_size = min(self.chunk_size, 128)  # Max 128 chars per chunk
-                effective_overlap = min(self.chunk_overlap, 32)   # Max 32 chars overlap
+                # Use configurable chunk size from config
+                from src import config
+                effective_chunk_size = min(self.chunk_size, config.EFFECTIVE_CHUNK_SIZE)
+                effective_overlap = min(self.chunk_overlap, config.EFFECTIVE_CHUNK_OVERLAP)
                 
+                print(f"Chunking text with size {effective_chunk_size} and overlap {effective_overlap}")
                 chunks = chunk_text(text, effective_chunk_size, effective_overlap)
                 # Free memory immediately
                 del text
@@ -201,49 +203,46 @@ class DocumentIndexer:
                 return 0
             
             # Limit number of chunks to prevent memory issues
-            max_chunks = 50  # Process at most 50 chunks per file
-            if len(chunks) > max_chunks:
-                print(f"Warning: Too many chunks ({len(chunks)}) for file {file_path}. Limiting to {max_chunks}.")
-                chunks = chunks[:max_chunks]
+            from src import config
+            if len(chunks) > config.MAX_CHUNKS_PER_FILE:
+                print(f"Warning: Too many chunks ({len(chunks)}) for file {file_path}. Limiting to {config.MAX_CHUNKS_PER_FILE}.")
+                chunks = chunks[:config.MAX_CHUNKS_PER_FILE]
                 
-            # Generate embeddings and index in very small batches
+            # Generate embeddings and index in larger batches
             success_count = 0
             try:
-                # Use micro-batches of just 1 or 2 chunks at a time
-                micro_batch_size = 1
+                # Use config batch size for more efficient processing
+                from src import config
+                micro_batch_size = config.BATCH_SIZE
                 
-                for i in range(0, len(chunks), micro_batch_size):
-                    # Get current batch
-                    batch_chunks = chunks[i:i+micro_batch_size]
-                    
-                    # Generate embeddings for this micro-batch
-                    batch_embeddings = self.embedding_generator.generate_embeddings(batch_chunks)
-                    
-                    # Prepare and index documents for this micro-batch immediately
-                    batch_documents = []
-                    for j, (chunk, embedding) in enumerate(zip(batch_chunks, batch_embeddings)):
-                        doc = self.storage.prepare_document(
-                            file_path=file_path,
-                            file_type=ext,
-                            chunk_id=i+j,
-                            content=chunk,
-                            embedding=embedding,
-                            metadata={"indexed_at": time.time()}
-                        )
-                        batch_documents.append(doc)
-                    
-                    # Index this micro-batch immediately
-                    success, failed = self.storage.index_documents(batch_documents)
-                    success_count += success
-                    
-                    # Free memory immediately after each micro-batch
-                    del batch_chunks
-                    del batch_embeddings
-                    del batch_documents
-                    gc.collect()
-                    
-                    # Small delay to allow memory to be freed
-                    time.sleep(0.1)
+                # Process all chunks at once for embedding generation
+                print(f"Generating embeddings for {len(chunks)} chunks...")
+                all_embeddings = self.embedding_generator.generate_embeddings(chunks)
+                
+                # Prepare all documents
+                print(f"Preparing {len(chunks)} documents for indexing...")
+                all_documents = []
+                for i, (chunk, embedding) in enumerate(zip(chunks, all_embeddings)):
+                    doc = self.storage.prepare_document(
+                        file_path=file_path,
+                        file_type=ext,
+                        chunk_id=i,
+                        content=chunk,
+                        embedding=embedding,
+                        metadata={"indexed_at": time.time()}
+                    )
+                    all_documents.append(doc)
+                
+                # Index documents in batches
+                print(f"Indexing {len(all_documents)} documents in batches of {micro_batch_size}...")
+                success, failed = self.storage.index_documents(all_documents, batch_size=micro_batch_size)
+                success_count = success
+                
+                # Free memory
+                del chunks
+                del all_embeddings
+                del all_documents
+                gc.collect()
                 
                 return success_count
             except Exception as e:
